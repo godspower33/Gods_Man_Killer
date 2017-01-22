@@ -43,8 +43,16 @@ public class Attack extends Node {
 		GodsManKiller.status = "Killing a man";
 		RSNPC[] man = NPCs.find("Man");
 		if (man.length > 0) {
+			if (abc2WaitTimes.isEmpty()) {
+				AntiBan.generateTrackers(General.random(800, 1200), false);
+			}
+			if (!abc2WaitTimes.isEmpty()) {
+				AntiBan.generateTrackers(Utils.calculateAverage(abc2WaitTimes), false);
+			}
+			int reactionTime = AntiBan.getReactionTime();
+			abc2WaitTimes.add(reactionTime);
+			AntiBan.sleepReactionTime();
 			final RSNPC target = AntiBan.selectNextTarget(man);
-			abc2WaitTimes.add(General.random(1200, 2800));
 			if (!target.isOnScreen())
 				Camera.turnToTile(target);
 			if (!PathFinding.canReach(target, true)) {
@@ -62,14 +70,9 @@ public class Attack extends Node {
 					}, General.random(2500, 3700));
 				}
 			}
+			long startTime = System.currentTimeMillis();
 			if (!target.isInCombat() && !Utils.isInCombat()) {
 				if (Clicking.click("Attack Man", target)) {
-					if (Combat.getTargetEntity().getHealthPercent() > 30) {
-						if (AntiBan.getShouldHover()) {
-							AntiBan.hoverEntity(man);
-							AntiBan.resetShouldHover();
-						}
-					}
 					Timing.waitCondition(new Condition() {
 						@Override
 						public boolean active() {
@@ -79,21 +82,33 @@ public class Attack extends Node {
 					}, General.random(2500, 3700));
 				}
 			}
-			if (Combat.getTargetEntity().getHealthPercent() < 30) {
-				if (AntiBan.getShouldOpenMenu()) {
-					if (DynamicClicking.clickRSNPC(target, 3)) {
-						Timing.waitCondition(new Condition() {
-							@Override
-							public boolean active() {
-								General.sleep(100, 200);
-								return ChooseOption.isOpen();
-							}
-						}, General.random(2500, 3700));
+			while (Player.getRSPlayer().isInCombat()) {
+				AntiBan.timedActions();
+				if (Combat.getTargetEntity().getHealthPercent() > 30) {
+					if (AntiBan.getShouldHover()) {
+						AntiBan.hoverEntity(man);
+						AntiBan.resetShouldHover();
 					}
-					AntiBan.resetShouldOpenMenu();
 				}
+				if (Combat.getTargetEntity().getHealthPercent() < 30) {
+					if (AntiBan.getShouldOpenMenu()) {
+						if (DynamicClicking.clickRSNPC(target, 3)) {
+							Timing.waitCondition(new Condition() {
+								@Override
+								public boolean active() {
+									General.sleep(100, 200);
+									return ChooseOption.isOpen();
+								}
+							}, General.random(2500, 3700));
+						}
+						AntiBan.resetShouldOpenMenu();
+					}
+				}
+			}
+			if (!Player.getRSPlayer().isInCombat()) {
+				AntiBan.generateTrackers((int) (System.currentTimeMillis() - startTime), false);
+				abc2WaitTimes.add(AntiBan.getReactionTime());
 			}
 		}
 	}
-
 }
